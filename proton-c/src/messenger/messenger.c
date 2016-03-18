@@ -1618,7 +1618,21 @@ int pn_messenger_stop(pn_messenger_t *messenger)
     pn_connection_t *conn = (pn_connection_t *) pn_list_get(messenger->connections, i);
     pn_link_t *link = pn_link_head(conn, PN_LOCAL_ACTIVE);
     while (link) {
-      pn_link_close(link);
+      bool close = true;
+      /* detach rather than close long-lived subscriptions */
+      if (pn_link_is_receiver(link)) {
+        pn_expiry_policy_t expiry_policy =
+            pn_terminus_get_expiry_policy(pn_link_target(link));
+        pn_seconds_t timeout = pn_terminus_get_timeout(pn_link_target(link));
+        if (expiry_policy == PN_EXPIRE_NEVER || timeout > 0) {
+          close = false;
+        }
+      }
+      if (close) {
+        pn_link_close(link);
+      } else {
+        pn_link_detach(link);
+      }
       link = pn_link_next(link, PN_LOCAL_ACTIVE);
     }
     pn_connection_close(conn);
