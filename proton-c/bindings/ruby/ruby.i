@@ -623,4 +623,14 @@ int pn_ssl_get_peer_hostname(pn_ssl_t *ssl, char *OUTPUT, size_t *OUTPUT_SIZE);
 %}
 %ignore pn_messenger_resolve;
 
+%rename(pn_transport_get_sasl) wrap_pn_transport_get_sasl;
+%inline %{
+pn_sasl_t*wrap_pn_transport_get_sasl(pn_transport_t * transport) {
+  void *result;
+  result = (pn_sasl_t *)pn_transport_get_sasl(transport);
+  return result;
+}
+%}
+%ignore pn_transport_get_sasl;
+
 %include "proton/cproton.i"
