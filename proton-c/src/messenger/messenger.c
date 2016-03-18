@@ -1658,6 +1658,67 @@ static int pni_route(pn_messenger_t *messenger, const char *address)
   return 0;
 }
 
+// XXX: refactor, as this duplicates a lot of code with pn_messenger_resolve
+static pn_connection_t *pn_messenger_find_connection(pn_messenger_t *messenger,
+                                                     const char *address,
+                                                     char **name)
+{
+  assert(messenger);
+  messenger->connection_error = 0;
+  pn_string_t *domain = messenger->domain;
+
+  // int err = pni_route(messenger, address);
+  // if (err) return NULL;
+
+  bool passive = messenger->address.passive;
+  char *scheme = messenger->address.scheme;
+  char *user = messenger->address.user;
+  char *pass = messenger->address.pass;
+  char *host = messenger->address.host;
+  char *port = messenger->address.port;
+  *name = messenger->address.name;
+
+  if (passive) {
+    for (size_t i = 0; i < pn_list_size(messenger->listeners); i++) {
+      pn_listener_ctx_t *ctx =
+          (pn_listener_ctx_t *)pn_list_get(messenger->listeners, i);
+      if (pn_streq(host, ctx->host) && pn_streq(port, ctx->port)) {
+        return NULL;
+      }
+    }
+
+    pn_listener_ctx(messenger, scheme, host, port);
+    return NULL;
+  }
+
+  pn_string_set(domain, "");
+
+  if (user) {
+    pn_string_addf(domain, "%s@", user);
+  }
+  pn_string_addf(domain, "%s", host);
+  if (port) {
+    pn_string_addf(domain, ":%s", port);
+  }
+
+  for (size_t i = 0; i < pn_list_size(messenger->connections); i++) {
+    pn_connection_t *connection =
+        (pn_connection_t *)pn_list_get(messenger->connections, i);
+    pn_connection_ctx_t *ctx =
+        (pn_connection_ctx_t *)pn_connection_get_context(connection);
+    if (pn_streq(scheme, ctx->scheme) && pn_streq(user, ctx->user) &&
+        pn_streq(pass, ctx->pass) && pn_streq(host, ctx->host) &&
+        pn_streq(port, ctx->port)) {
+      return connection;
+    }
+    const char *container = pn_connection_remote_container(connection);
+    if (pn_streq(container, pn_string_get(domain))) {
+      return connection;
+    }
+  }
+  return NULL;
+}
+
 pn_connection_t *pn_messenger_resolve(pn_messenger_t *messenger, const char *address, char **name)
 {
   assert(messenger);
@@ -2458,4 +2519,28 @@ pn_messenger_set_ssl_peer_authentication_mode(pn_messenger_t *messenger,
     return PN_ARG_ERR;
   messenger->ssl_peer_authentication_mode = mode;
   return 0;
+}
+
+bool pn_messenger_pending_outbound(pn_messenger_t *messenger,
+                                   const char *address)
+{
+  char *name = NULL;
+  pn_connection_t *connection =
+      pn_messenger_find_connection(messenger, address, &name);
+  if (!connection) {
+    return false;
+  }
+
+  pn_transport_t *transport = pn_connection_transport(connection);
+  if (pn_transport_pending(transport) > 0) {
+    return true;
+  }
+
+  pn_session_t *session = pn_session_head(connection, PN_LOCAL_ACTIVE);
+  while (session) {
+    if (pn_session_outgoing_bytes(session) > 0)
+      return true;
+    session = pn_session_next(session, PN_LOCAL_ACTIVE);
+  }
+  return false;
 }

@@ -1054,6 +1054,17 @@ PN_EXTERN int
 pn_messenger_set_ssl_peer_authentication_mode(pn_messenger_t *messenger,
                                               const pn_ssl_verify_mode_t mode);
 
+/**
+ * Returns the number of bytes of data pending transmission over a
+ * particular connection.
+ *
+ * @param[in] messenger a messenger object
+ * @param[in] address the address associated with the connection
+ * @return true if there is data that is buffered pending transmission.
+ */
+PN_EXTERN bool pn_messenger_pending_outbound(pn_messenger_t *messenger,
+                                             const char *address);
+
 #ifdef __cplusplus
 }
 #endif
