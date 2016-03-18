@@ -989,22 +989,22 @@ static int pn_transport_config(pn_messenger_t *messenger,
         pn_error_report(messenger->error, "SSL", "invalid certificate db");
         return err;
       }
-      err = pn_ssl_domain_set_peer_authentication(
-          d, messenger->ssl_peer_authentication_mode, NULL);
-      if (err) {
+    }
+    int err = pn_ssl_domain_set_peer_authentication(
+            d, messenger->ssl_peer_authentication_mode, NULL);
+    if (err) {
         pn_ssl_domain_free(d);
-        pn_error_report(messenger->error, "SSL",
-                        "error configuring ssl to verify peer");
-      }
-    } else {
       int err = pn_ssl_domain_set_peer_authentication(
               d, PN_SSL_ANONYMOUS_PEER, NULL);
-      if (err) {
+      if (messenger->ssl_peer_authentication_mode == PN_SSL_ANONYMOUS_PEER) {
         pn_ssl_domain_free(d);
         pn_error_report(messenger->error, "SSL",
                         "error configuring ssl for anonymous peer");
-        return err;
+      } else {
+        pn_error_report(messenger->error, "SSL",
+                        "error configuring ssl to verify peer");
       }
+      return err;
     }
     pn_ssl_t *ssl = pn_ssl(transport);
     pn_ssl_init(ssl, d, NULL);
