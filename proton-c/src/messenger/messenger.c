@@ -1813,6 +1813,9 @@ pn_connection_t *pn_messenger_resolve(pn_messenger_t *messenger, const char *add
       pn_sasl_t *s = pn_sasl(transport);
       pn_sasl_set_allow_insecure_mechs(s, true);
   }
+  if (user) {
+      pn_transport_require_auth(transport, true);
+  }
   pn_transport_bind(transport, connection);
   pn_decref(transport);
   pn_connection_ctx_t *ctx = (pn_connection_ctx_t *) pn_connection_get_context(connection);

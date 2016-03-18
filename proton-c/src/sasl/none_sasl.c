@@ -102,28 +102,30 @@ bool pni_process_mechanisms(pn_transport_t *transport, const char *mechs)
     return true;
   }
 
-  // Look for "ANONYMOUS" in mechs
-  found = strstr(mechs, ANONYMOUS);
-  // Make sure that string is separated and terminated and allowed
-  if (found && (found==mechs || found[-1]==' ') && (found[9]==0 || found[9]==' ') &&
-      pni_included_mech(transport->sasl->included_mechanisms, pn_bytes(9, found))) {
-    transport->sasl->selected_mechanism = pn_strdup(ANONYMOUS);
-    if (transport->sasl->username) {
-      size_t size = strlen(transport->sasl->username);
-      char *iresp = (char *) malloc(size);
-      if (!iresp) return false;
+  if (!transport->auth_required) {
+    // Look for "ANONYMOUS" in mechs
+    found = strstr(mechs, ANONYMOUS);
+    // Make sure that string is separated and terminated and allowed
+    if (found && (found==mechs || found[-1]==' ') && (found[9]==0 || found[9]==' ') &&
+        pni_included_mech(transport->sasl->included_mechanisms, pn_bytes(9, found))) {
+      transport->sasl->selected_mechanism = pn_strdup(ANONYMOUS);
+      if (transport->sasl->username) {
+        size_t size = strlen(transport->sasl->username);
+        char *iresp = (char *) malloc(size);
+        if (!iresp) return false;
 
-      transport->sasl->impl_context = iresp;
+        transport->sasl->impl_context = iresp;
 
-      memmove(iresp, transport->sasl->username, size);
-      transport->sasl->bytes_out.start = iresp;
-      transport->sasl->bytes_out.size =  size;
-    } else {
-      static const char anon[] = "anonymous";
-      transport->sasl->bytes_out.start = anon;
-      transport->sasl->bytes_out.size =  sizeof anon-1;
+        memmove(iresp, transport->sasl->username, size);
+        transport->sasl->bytes_out.start = iresp;
+        transport->sasl->bytes_out.size =  size;
+      } else {
+        static const char anon[] = "anonymous";
+        transport->sasl->bytes_out.start = anon;
+        transport->sasl->bytes_out.size =  sizeof anon-1;
+      }
+      return true;
     }
-    return true;
   }
   return false;
 }
