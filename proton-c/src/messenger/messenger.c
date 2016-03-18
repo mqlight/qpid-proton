@@ -21,6 +21,7 @@
 
 #include <proton/messenger.h>
 
+#include <proton/transport.h>
 #include <proton/connection.h>
 #include <proton/delivery.h>
 #include <proton/event.h>
@@ -272,8 +273,23 @@ static void pni_connection_readable(pn_selectable_t *sel)
         }
         pn_transport_close_tail(transport);
         if (!(pn_connection_state(connection) & PN_REMOTE_CLOSED)) {
-          pn_error_report(messenger->error, "CONNECTION",
-                          "connection aborted (remote)");
+          pn_sasl_t *sasl = (pn_sasl_t *)pn_transport_get_sasl(transport);
+          pn_sasl_outcome_t outcome;
+
+          if (sasl) {
+            outcome = pn_sasl_outcome(sasl);
+            if (outcome == PN_SASL_AUTH) {
+              pn_error_report(messenger->error, "CONNECTION",
+                              "sasl authentication failed");
+            } else if (outcome != PN_SASL_OK) {
+              pn_error_report(messenger->error, "CONNECTION",
+                              "sasl negotiation failed");
+            }
+          }
+          if (pn_messenger_errno(messenger) == 0) {
+            pn_error_report(messenger->error, "CONNECTION",
+                            "connection aborted (remote)");
+          }
         }
       }
     } else {

@@ -2672,6 +2672,12 @@ pn_record_t *pn_transport_attachments(pn_transport_t *transport)
   return transport->context;
 }
 
+void *pn_transport_get_sasl(pn_transport_t *transport)
+{
+  assert(transport);
+  return transport->sasl;
+}
+
 void pn_transport_log(pn_transport_t *transport, const char *message)
 {
   assert(transport);

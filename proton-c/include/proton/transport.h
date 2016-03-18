@@ -283,6 +283,15 @@ PN_EXTERN void pn_transport_set_context(pn_transport_t *transport, void *context
 PN_EXTERN pn_record_t *pn_transport_attachments(pn_transport_t *transport);
 
 /**
+ * Access the Authentication and Security context of the transport.
+ *
+ * @param[in] transport the transport whose security context is to be returned.
+ * @return the Authentication and Security context for the transport,
+ *         or NULL if none
+ */
+PN_EXTERN void *pn_transport_get_sasl(pn_transport_t *transport);
+
+/**
  * Log a message using a transport's logging mechanism.
  *
  * This can be useful in a debugging context as the log message will
