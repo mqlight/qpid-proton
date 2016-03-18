@@ -633,4 +633,14 @@ pn_sasl_t*wrap_pn_transport_get_sasl(pn_transport_t * transport) {
 %}
 %ignore pn_transport_get_sasl;
 
+%rename(pn_sasl_outcome) wrap_pn_sasl_outcome;
+%inline %{
+int wrap_pn_sasl_outcome(pn_transport_t * transport) {
+  int result;
+  result = (int)pn_sasl_outcome(transport);
+  return result;
+}
+%}
+%ignore pn_sasl_outcome;
+
 %include "proton/cproton.i"
