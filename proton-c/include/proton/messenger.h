@@ -508,6 +508,21 @@ pn_messenger_subscribe_ttl(pn_messenger_t *messenger, const char *source,
                            pn_seconds_t timeout);
 
 /**
+ * Get a link based on link name, whether the link is a sender
+ * or receiver and whether the link is of the specified state
+ *
+ * @param[in] messenger the messenger to get the link from
+ * @param[in] address the link address that identifies the link to receive
+ * @param[in] sender true if the link is a sender, false if the link is a
+ *            receiver
+ * @param[in] state the state the matching link must be in
+ * @return a link, or NULL if no link matches the input parameters
+ */
+PN_EXTERN pn_link_t *pn_messenger_get_stated_link(pn_messenger_t *messenger,
+                                                  const char *address, bool sender,
+                                                  pn_state_t state);
+
+/**
  * Get a link based on link name and whether the link is a sender or receiver
  *
  * @param[in] messenger the messenger to get the link from
@@ -986,6 +1001,10 @@ PN_EXTERN pn_timestamp_t pn_messenger_deadline(pn_messenger_t *messenger);
             mechanism is allowed on an unencrypted                             \
             connection */
 
+#define PN_FLAGS_EXTERNAL_SOCKET                                               \
+  (0x4) /** Messenger flag to indicate that an external socket is to be        \
+            used rather than a messenger created socket */
+
 /** Sets control flags to enable additional function for the Messenger.
  *
  * @param[in] messenger the messenger
@@ -1064,6 +1083,74 @@ pn_messenger_set_ssl_peer_authentication_mode(pn_messenger_t *messenger,
  */
 PN_EXTERN bool pn_messenger_pending_outbound(pn_messenger_t *messenger,
                                              const char *address);
+
+/**
+ * Sets up the messenger for use with an external socket.
+ *
+ * @param[in] messenger a messenger object
+ * @return 0 if successful or -1 if an error occurs
+ */
+PN_EXTERN int pn_messenger_set_external_socket(pn_messenger_t *messenger);
+
+/**
+ * Resolves a connection on the specified address.
+ *
+ * @param[in] messenger a messenger object
+ * @param[in] address an address for a connection
+ * @param[out] name the connection name
+ * @return 0 if successful or -1 if an error occurs
+ */
+PN_EXTERN  pn_connection_t *pn_messenger_resolve(pn_messenger_t *messenger,
+                                                 const char *address,
+                                                 char **name);
+
+/**
+ * Push data from an external socket into a connection.
+ *
+ * @param[in] connection the messenger connection
+ * @param[in] buf the data to be pushed
+ * @param[in] size the number of bytes to be pushed
+ * @return the number of bytes pushed into the connection
+ */
+PN_EXTERN int pn_connection_push(pn_connection_t *connection,
+                                 void *buf, size_t size);
+
+/**
+ * Pop data from a connection after having been written by an
+ * external socket.
+ *
+ * @param[in] connection the messenger connection
+ * @param[in] size the number of bytes to be popped
+ * @return false if successful or true if the connection has been closed
+ */
+PN_EXTERN bool pn_connection_pop(pn_connection_t *connection, size_t size);
+
+/**
+ * Tell a connection that an external socket has been closed.
+ *
+ * @param[in] messenger a messenger object
+ * @param[in] connection the messenger connection
+ */
+PN_EXTERN void pn_connection_was_closed(pn_messenger_t *messenger,
+                                        pn_connection_t *connection);
+
+/**
+ * Returns true if a messenger is in the started state. This
+ * function does not block.
+ *
+ * @param[in] messenger the messenger to start
+ *
+ */
+PN_EXTERN bool pn_messenger_started(pn_messenger_t *messenger);
+
+/**
+ * Reclaims a link that is finished with.
+ *
+ * @param[in] messenger a messenger object
+ * @param[in] link the link for reclaiming
+ *
+ */
+PN_EXTERN void pn_messenger_reclaim_link(pn_messenger_t *messenger, pn_link_t *link);
 
 #ifdef __cplusplus
 }

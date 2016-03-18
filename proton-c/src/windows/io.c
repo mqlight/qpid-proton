@@ -354,11 +354,14 @@ ssize_t pn_read(pn_io_t *io, pn_socket_t socket, void *buf, size_t size)
 
 void pn_close(pn_io_t *io, pn_socket_t socket)
 {
-  iocpdesc_t *iocpd = pni_iocpdesc_map_get(io->iocp, socket);
-  if (iocpd)
-    pni_iocp_begin_close(iocpd);
-  else {
-    closesocket(socket);
+  if (socket != PN_INVALID_SOCKET)
+  {
+    iocpdesc_t *iocpd = pni_iocpdesc_map_get(io->iocp, socket);
+    if (iocpd)
+      pni_iocp_begin_close(iocpd);
+    else {
+      closesocket(socket);
+    }
   }
 }
 

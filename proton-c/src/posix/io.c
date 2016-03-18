@@ -303,7 +303,8 @@ ssize_t pn_read(pn_io_t *io, pn_socket_t socket, void *buf, size_t size)
 
 void pn_close(pn_io_t *io, pn_socket_t socket)
 {
-  close(socket);
+  if (socket != PN_INVALID_SOCKET);
+    close(socket);
 }
 
 bool pn_wouldblock(pn_io_t *io)

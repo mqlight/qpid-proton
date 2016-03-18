@@ -972,45 +972,48 @@ static int pn_transport_config(pn_messenger_t *messenger,
   pn_transport_t *transport = pn_connection_transport(connection);
   if (messenger->tracer)
     pn_transport_set_tracer(transport, messenger->tracer);
-  if (ctx->scheme && !strcmp(ctx->scheme, "amqps")) {
-    pn_ssl_domain_t *d = pn_ssl_domain(PN_SSL_MODE_CLIENT);
-    if (messenger->certificate && messenger->private_key) {
-      int err = pn_ssl_domain_set_credentials( d, messenger->certificate,
-                                               messenger->private_key,
-                                               messenger->password);
-      if (err) {
-        pn_ssl_domain_free(d);
-        pn_error_report(messenger->error, "SSL", "invalid credentials");
-        return err;
+  if ((messenger->flags & PN_FLAGS_EXTERNAL_SOCKET) == 0) {
+    // Set up the SSL domain if an external socket is not in use.
+    if (ctx->scheme && !strcmp(ctx->scheme, "amqps")) {
+      pn_ssl_domain_t *d = pn_ssl_domain(PN_SSL_MODE_CLIENT);
+      if (messenger->certificate && messenger->private_key) {
+        int err = pn_ssl_domain_set_credentials( d, messenger->certificate,
+                                                 messenger->private_key,
+                                                 messenger->password);
+        if (err) {
+          pn_ssl_domain_free(d);
+          pn_error_report(messenger->error, "SSL", "invalid credentials");
+          return err;
+        }
       }
-    }
-    if (messenger->trusted_certificates) {
-      int err = pn_ssl_domain_set_trusted_ca_db(d, messenger->trusted_certificates);
-      if (err) {
-        pn_ssl_domain_free(d);
-        pn_error_report(messenger->error, "SSL", "invalid certificate db");
-        return err;
+      if (messenger->trusted_certificates) {
+        int err = pn_ssl_domain_set_trusted_ca_db(d, messenger->trusted_certificates);
+        if (err) {
+          pn_ssl_domain_free(d);
+          pn_error_report(messenger->error, "SSL", "invalid certificate db");
+          return err;
+        }
       }
-    }
-    int err = pn_ssl_domain_set_peer_authentication(
-            d, messenger->ssl_peer_authentication_mode, NULL);
-    if (err) {
-        pn_ssl_domain_free(d);
       int err = pn_ssl_domain_set_peer_authentication(
-              d, PN_SSL_ANONYMOUS_PEER, NULL);
-      if (messenger->ssl_peer_authentication_mode == PN_SSL_ANONYMOUS_PEER) {
+          d, messenger->ssl_peer_authentication_mode, NULL);
+      if (err) {
         pn_ssl_domain_free(d);
-        pn_error_report(messenger->error, "SSL",
-                        "error configuring ssl for anonymous peer");
-      } else {
-        pn_error_report(messenger->error, "SSL",
-                        "error configuring ssl to verify peer");
+        int err = pn_ssl_domain_set_peer_authentication(
+            d, PN_SSL_ANONYMOUS_PEER, NULL);
+        if (messenger->ssl_peer_authentication_mode == PN_SSL_ANONYMOUS_PEER) {
+          pn_ssl_domain_free(d);
+          pn_error_report(messenger->error, "SSL",
+                          "error configuring ssl for anonymous peer");
+        } else {
+          pn_error_report(messenger->error, "SSL",
+                          "error configuring ssl to verify peer");
+        }
+        return err;
       }
-      return err;
+      pn_ssl_t *ssl = pn_ssl(transport);
+      pn_ssl_init(ssl, d, NULL);
+      pn_ssl_domain_free( d );
     }
-    pn_ssl_t *ssl = pn_ssl(transport);
-    pn_ssl_init(ssl, d, NULL);
-    pn_ssl_domain_free( d );
   }
 
   return 0;
@@ -1123,6 +1126,11 @@ void pni_messenger_reclaim_link(pn_messenger_t *messenger, pn_link_t *link)
   }
 
   link_ctx_release(messenger, link);
+}
+
+void pn_messenger_reclaim_link(pn_messenger_t *messenger, pn_link_t *link)
+{
+  pni_messenger_reclaim_link(messenger, link);
 }
 
 void pni_messenger_reclaim(pn_messenger_t *messenger, pn_connection_t *conn)
@@ -1577,7 +1585,7 @@ int pn_messenger_start(pn_messenger_t *messenger)
                               messenger->address.host, messenger->address.port,
                               pn_error_text(messenger->error));
               error = pn_error_code(messenger->error);
-            } else {
+            } else if ((messenger->flags & PN_FLAGS_EXTERNAL_SOCKET) == 0) {
               // Send and receive outstanding messages until connection
               // completes or an error occurs
               int work = pn_messenger_work(messenger, -1);
@@ -1788,13 +1796,16 @@ pn_connection_t *pn_messenger_resolve(pn_messenger_t *messenger, const char *add
     }
   }
 
-  pn_socket_t sock = pn_connect(messenger->io, host, port ? port : default_port(scheme));
-  if (sock == PN_INVALID_SOCKET) {
-    pn_error_copy(messenger->error, pn_io_error(messenger->io));
-    pn_error_format(messenger->error, PN_ERR, "CONNECTION ERROR (%s:%s): %s\n",
-                    messenger->address.host, messenger->address.port,
-                    pn_error_text(messenger->error));
-    return NULL;
+  pn_socket_t sock = PN_INVALID_SOCKET;
+  if ((messenger->flags & PN_FLAGS_EXTERNAL_SOCKET) == 0) {
+    sock = pn_connect(messenger->io, host, port ? port : default_port(scheme));
+    if (sock == PN_INVALID_SOCKET) {
+      pn_error_copy(messenger->error, pn_io_error(messenger->io));
+      pn_error_format(messenger->error, PN_ERR, "CONNECTION ERROR (%s:%s): %s\n",
+                      messenger->address.host, messenger->address.port,
+                      pn_error_text(messenger->error));
+      return NULL;
+    }
   }
 
   pn_connection_t *connection =
@@ -1820,14 +1831,15 @@ pn_connection_t *pn_messenger_resolve(pn_messenger_t *messenger, const char *add
   return connection;
 }
 
-PN_EXTERN pn_link_t *pn_messenger_get_link(pn_messenger_t *messenger,
-                                           const char *address, bool sender)
+pn_link_t *pn_messenger_get_stated_link(pn_messenger_t *messenger,
+                                        const char *address, bool sender,
+                                        pn_state_t state)
 {
   char *name = NULL;
   pn_connection_t *connection = pn_messenger_resolve(messenger, address, &name);
   if (!connection) return NULL;
 
-  pn_link_t *link = pn_link_head(connection, PN_LOCAL_ACTIVE);
+  pn_link_t *link = pn_link_head(connection, state);
   while (link) {
     if (pn_link_is_sender(link) == sender) {
       const char *terminus = pn_link_is_sender(link) ?
@@ -1836,9 +1848,16 @@ PN_EXTERN pn_link_t *pn_messenger_get_link(pn_messenger_t *messenger,
       if (pn_streq(name, terminus))
         return link;
     }
-    link = pn_link_next(link, PN_LOCAL_ACTIVE);
+    link = pn_link_next(link, state);
   }
   return NULL;
+}
+
+PN_EXTERN pn_link_t *pn_messenger_get_link(pn_messenger_t *messenger,
+                                           const char *address, bool sender)
+{
+  return pn_messenger_get_stated_link(messenger, address,
+                                      sender, PN_LOCAL_ACTIVE);
 }
 
 pn_link_t *pn_messenger_link(pn_messenger_t *messenger, const char *address,
@@ -2531,9 +2550,8 @@ pn_millis_t pn_messenger_get_remote_idle_timeout(pn_messenger_t *messenger,
   return timeout;
 }
 
-int
-pn_messenger_set_ssl_peer_authentication_mode(pn_messenger_t *messenger,
-                                              const pn_ssl_verify_mode_t mode)
+int pn_messenger_set_ssl_peer_authentication_mode(pn_messenger_t *messenger,
+                                                  const pn_ssl_verify_mode_t mode)
 {
   if (!messenger)
     return PN_ARG_ERR;
@@ -2563,4 +2581,116 @@ bool pn_messenger_pending_outbound(pn_messenger_t *messenger,
     session = pn_session_next(session, PN_LOCAL_ACTIVE);
   }
   return false;
+}
+
+int pn_messenger_set_external_socket(pn_messenger_t *messenger)
+{
+  if (!messenger)
+    return PN_ARG_ERR;
+
+  // Set a flag to show an external socket is being used.
+  messenger->flags |= PN_FLAGS_EXTERNAL_SOCKET;
+
+  // If we have an external socket then passive mode is implied since the
+  // messenger won't have a socket to send or recv on.
+  pn_messenger_set_passive(messenger, true);
+
+  return 0;
+}
+
+int pn_connection_push(pn_connection_t *connection, void *buf, size_t size)
+{
+  pn_connection_ctx_t *context = (pn_connection_ctx_t *) pn_connection_get_context(connection);
+  pn_messenger_t *messenger = context->messenger;
+  pn_transport_t *transport = pn_connection_transport(connection);
+  ssize_t n;
+
+  if (transport) {
+    n = pn_transport_push(transport, (char*)buf, size);
+    pn_error_t *transport_error = pn_transport_error(transport);
+    if (pn_error_code(transport_error) != 0) {
+      pn_error_copy(messenger->error, transport_error);
+    }
+  } else {
+    n = 0;
+  }
+
+  return (int)n;
+}
+
+bool pn_connection_pop(pn_connection_t *connection, size_t size)
+{
+  pn_connection_ctx_t *context = (pn_connection_ctx_t *) pn_connection_get_context(connection);
+  pn_messenger_t *messenger = context->messenger;
+  pn_transport_t *transport = pn_connection_transport(connection);
+
+  if (transport) {
+    if (size > 0) {
+      pn_transport_pop(transport, size);
+    }
+
+    pn_transport_tick(transport, pn_i_now());
+    pn_messenger_process_events(messenger);
+    pn_messenger_flow(messenger);
+    messenger->worked = true;
+    pni_conn_modified(context);
+
+    if (pn_transport_closed(transport)) {
+      pn_selectable_terminate(context->selectable);
+      pn_selectable_free(context->selectable);
+      return true;
+    }
+  }
+
+  return false;
+}
+
+void pn_connection_was_closed(pn_messenger_t *messenger, pn_connection_t *connection)
+{
+  pn_transport_t *transport = pn_connection_transport(connection);
+
+  if (transport) {
+    pn_transport_close_head(transport);
+    pn_transport_close_tail(transport);
+  }
+  if (!(pn_connection_state(connection) & PN_REMOTE_CLOSED)) {
+    pn_sasl_t *sasl = (pn_sasl_t *)pn_transport_get_sasl(transport);
+    pn_sasl_outcome_t outcome;
+
+    if (sasl) {
+      outcome = pn_sasl_outcome(sasl);
+      if (outcome == PN_SASL_AUTH) {
+        pn_error_report(messenger->error, "CONNECTION",
+                        "sasl authentication failed");
+      } else if (outcome != PN_SASL_OK) {
+        pn_error_report(messenger->error, "CONNECTION",
+                        "sasl negotiation failed");
+      }
+    }
+    if (pn_messenger_errno(messenger) == 0) {
+      pn_error_report(messenger->error, "CONNECTION",
+                      "connection aborted (remote)");
+    }
+  }
+}
+
+bool pn_messenger_started(pn_messenger_t *messenger)
+{
+  for (size_t i = 0; i < pn_list_size(messenger->connections); i++) {
+    pn_connection_t *connection =
+      (pn_connection_t *)pn_list_get(messenger->connections, i);
+    pn_connection_ctx_t *cctx =
+      (pn_connection_ctx_t *)pn_connection_get_context(connection);
+
+    pn_messenger_work(messenger, -1);
+    if ((pn_connection_state(connection) & PN_REMOTE_UNINIT) ||
+        pni_connection_pending(cctx->selectable) != (ssize_t)0) {
+      return false;
+    }
+
+    if (pn_error_code(messenger->error) != 0)
+      return false;
+  }
+
+  return true;
 }
