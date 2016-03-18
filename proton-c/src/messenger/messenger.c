@@ -274,11 +274,9 @@ static void pni_connection_readable(pn_selectable_t *sel)
         }
         pn_transport_close_tail(transport);
         if (!(pn_connection_state(connection) & PN_REMOTE_CLOSED)) {
-          pn_sasl_t *sasl = (pn_sasl_t *)pn_transport_get_sasl(transport);
           pn_sasl_outcome_t outcome;
-
-          if (sasl) {
-            outcome = pn_sasl_outcome(sasl);
+          if (transport) {
+            outcome = pn_sasl_outcome((pn_sasl_t *) transport);
             if (outcome == PN_SASL_AUTH) {
               pn_error_report(messenger->error, "CONNECTION",
                               "sasl authentication failed");
@@ -2655,11 +2653,11 @@ void pn_connection_was_closed(pn_messenger_t *messenger, pn_connection_t *connec
     pn_transport_close_tail(transport);
   }
   if (!(pn_connection_state(connection) & PN_REMOTE_CLOSED)) {
-    pn_sasl_t *sasl = (pn_sasl_t *)pn_transport_get_sasl(transport);
     pn_sasl_outcome_t outcome;
 
-    if (sasl) {
-      outcome = pn_sasl_outcome(sasl);
+    if (transport) {
+      // Proton 0.10 - pn_sasl_outcome expects a transport not sasl object
+      outcome = pn_sasl_outcome((pn_sasl_t *)transport);
       if (outcome == PN_SASL_AUTH) {
         pn_error_report(messenger->error, "CONNECTION",
                         "sasl authentication failed");
