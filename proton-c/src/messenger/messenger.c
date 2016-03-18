@@ -1811,7 +1811,7 @@ pn_connection_t *pn_messenger_resolve(pn_messenger_t *messenger, const char *add
   pn_connection_t *connection =
     pn_messenger_connection(messenger, sock, scheme, user, pass, host, port, NULL);
   pn_transport_t *transport = pn_transport();
-  if (messenger->flags & PN_FLAGS_ALLOW_INSECURE_MECHS && user && pass) {
+  if (messenger->flags & PN_FLAGS_ALLOW_INSECURE_MECHS) {
       pn_sasl_t *s = pn_sasl(transport);
       pn_sasl_set_allow_insecure_mechs(s, true);
   }
