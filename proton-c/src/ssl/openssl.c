@@ -79,7 +79,7 @@ struct pn_ssl_domain_t {
   pn_ssl_mode_t mode;
   pn_ssl_verify_mode_t verify_mode;
 
-  bool has_ca_db;       // true when CA database configured
+  X509_STORE *cert_store;
   bool has_certificate; // true when certificate configured
   bool allow_unsecured;
 };
@@ -134,6 +134,10 @@ struct pn_ssl_session_t {
   pn_ssl_session_t *ssn_cache_prev;
 };
 
+const char* root_certs[] = {
+ #include "./ssl_root_certs.h"
+   NULL
+};
 
 // define two sets of allowable ciphers: those that require authentication, and those
 // that do not require authentication (anonymous).  See ciphers(1).
@@ -284,11 +288,26 @@ static bool match_dns_pattern( const char *hostname,
 //
 static int verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 {
-  if (!preverify_ok || X509_STORE_CTX_get_error_depth(ctx) != 0)
+  X509 *cert = X509_STORE_CTX_get_current_cert(ctx);
+  int err = X509_STORE_CTX_get_error(ctx);
+  int depth = X509_STORE_CTX_get_error_depth(ctx);
+
+  if (!preverify_ok) {
+    char buf[256];
+    X509_NAME_oneline(X509_get_subject_name(cert), buf, 256);
+
+    ssl_log_error("preverify failed error=%d (%s) depth=%d subject=%s\n", err,
+               X509_verify_cert_error_string(err), depth, buf);
+    if (err == X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT) {
+      X509_NAME_oneline(X509_get_issuer_name(cert), buf, 256);
+      ssl_log_error("issuer= %s\n", buf);
+    }
+  }
+
+  if (!preverify_ok || depth != 0)
     // already failed, or not at peer cert in chain
     return preverify_ok;
 
-  X509 *cert = X509_STORE_CTX_get_current_cert(ctx);
   SSL *ssn = (SSL *) X509_STORE_CTX_get_ex_data(ctx, SSL_get_ex_data_X509_STORE_CTX_idx());
   if (!ssn) {
     pn_transport_logf(NULL, "Error: unexpected error - SSL session info not available for peer verify!");
@@ -512,6 +531,43 @@ pn_ssl_domain_t *pn_ssl_domain( pn_ssl_mode_t mode )
     return NULL;
   }
 
+  // initialise with an empty certificate store
+  domain->cert_store = X509_STORE_new();
+
+  // include root certificates in the store by default
+  for (int i = 0; root_certs[i] != NULL; i++) {
+    // temporarily write cert data to a 'memory BIO'
+    BIO *in = BIO_new(BIO_s_mem());
+    if (!BIO_write(in, root_certs[i], strlen(root_certs[i]))) {
+      ssl_log_error("Failed to write cert data to BIO\n");
+      BIO_free(in);
+      return NULL;
+    }
+
+    // read the certificate in PEM format from the BIO
+    X509 *cert = PEM_read_bio_X509(in, NULL, 0, NULL);
+    if (cert == NULL) {
+      ssl_log_error("Failed to read cert data from BIO\n");
+      BIO_free(in);
+      return NULL;
+    }
+
+    // add cert to the store
+    if (!X509_STORE_add_cert(domain->cert_store, cert)) {
+      ssl_log_error("Failed to add cert to the store\n");
+      X509_free(cert);
+      BIO_free(in);
+      return NULL;
+    }
+
+    // free temporary objects
+    X509_free(cert);
+    BIO_free(in);
+  }
+
+  // set cert store on CTX
+  SSL_CTX_set_cert_store(domain->ctx, domain->cert_store);
+
   DH *dh = get_dh2048();
   if (dh) {
     SSL_CTX_set_tmp_dh(domain->ctx, dh);
@@ -613,7 +669,7 @@ int pn_ssl_domain_set_trusted_ca_db(pn_ssl_domain_t *domain,
     return -1;
   }
 
-  domain->has_ca_db = true;
+  domain->cert_store = SSL_CTX_get_cert_store(domain->ctx);
 
   return 0;
 }
@@ -629,7 +685,7 @@ int pn_ssl_domain_set_peer_authentication(pn_ssl_domain_t *domain,
   case PN_SSL_VERIFY_PEER:
   case PN_SSL_VERIFY_PEER_NAME:
 
-    if (!domain->has_ca_db) {
+    if (!domain->cert_store) {
       pn_transport_logf(NULL, "Error: cannot verify peer without a trusted CA configured.\n"
                  "       Use pn_ssl_domain_set_trusted_ca_db()");
       return -1;
