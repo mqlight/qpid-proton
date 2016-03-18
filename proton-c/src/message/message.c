@@ -339,6 +339,62 @@ pn_message_t *pn_message()
   return msg;
 }
 
+int pn_message_copy(pn_message_t *dest, pn_message_t *src)
+{
+  if (!dest || !src) {
+    return PN_ARG_ERR;
+  }
+
+  dest->durable = src->durable;
+  dest->priority = src->priority;
+  dest->ttl = src->ttl;
+  dest->first_acquirer = src->first_acquirer;
+  dest->delivery_count = src->delivery_count;
+  int err = pn_data_copy(dest->id, src->id);
+  if (err) return err;
+  err = pn_string_copy(dest->user_id, src->user_id);
+  if (err) return err;
+  dest->address = pn_string(NULL);
+  err = pn_string_copy(dest->address, src->address);
+  if (err) return err;
+  err = pn_string_copy(dest->subject, src->subject);
+  if (err) return err;
+  err = pn_string_copy(dest->reply_to, src->reply_to);
+  if (err) return err;
+  err = pn_data_copy(dest->correlation_id, src->correlation_id);
+  if (err) return err;
+  err = pn_string_copy(dest->content_type, src->content_type);
+  if (err) return err;
+  err = pn_string_copy(dest->content_encoding, src->content_encoding);
+  if (err) return err;
+  dest->expiry_time = src->expiry_time;
+  dest->creation_time = src->creation_time;
+  err = pn_string_copy(dest->group_id, src->group_id);
+  if (err) return err;
+  dest->group_sequence = src->group_sequence;
+  err = pn_string_copy(dest->reply_to_group_id, src->reply_to_group_id);
+  if (err) return err;
+
+  dest->inferred = src->inferred;
+  err = pn_data_copy(dest->data, src->data);
+  if (err) return err;
+  err = pn_data_copy(dest->instructions, src->instructions);
+  if (err) return err;
+  err = pn_data_copy(dest->annotations, src->annotations);
+  if (err) return err;
+  err = pn_data_copy(dest->properties, src->properties);
+  if (err) return err;
+  err = pn_data_copy(dest->body, src->body);
+  if (err) return err;
+
+  dest->parser = src->parser;
+  err = pn_error_copy(dest->error, src->error);
+  if (err) return err;
+
+  return 0;
+}
+
+
 void pn_message_free(pn_message_t *msg)
 {
   pn_free(msg);

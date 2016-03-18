@@ -64,6 +64,15 @@ typedef struct pn_message_t pn_message_t;
 PN_EXTERN pn_message_t * pn_message(void);
 
 /**
+ * Copy a message object.
+ *
+ * @param[in] dest the message object to be copied into
+ * @param[in] src the message to be copied from
+ * @return 0 on success or an error code on failure
+ */
+PN_EXTERN int pn_message_copy(pn_message_t *dest, pn_message_t *src);
+
+/**
  * Free a previously constructed ::pn_message_t.
  *
  * @param[in] msg pointer to a ::pn_message_t or NULL
