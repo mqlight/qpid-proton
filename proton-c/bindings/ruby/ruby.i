@@ -19,6 +19,10 @@
 %module cproton
 
 %{
+#ifdef HAVE_SSIZE_T
+#define PN_NODEFINE_SSIZE_T
+#endif
+
 #include <proton/engine.h>
 #include <proton/message.h>
 #include <proton/sasl.h>

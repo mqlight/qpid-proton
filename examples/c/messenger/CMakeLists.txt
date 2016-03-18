@@ -30,3 +30,7 @@ target_link_libraries(recv ${Proton_LIBRARIES})
 target_link_libraries(send ${Proton_LIBRARIES})
 target_link_libraries(recv-async ${Proton_LIBRARIES})
 target_link_libraries(send-async ${Proton_LIBRARIES})
+
+if (BUILD_WITH_CXX)
+  set_source_files_properties (recv.c send.c PROPERTIES LANGUAGE CXX)
+endif (BUILD_WITH_CXX)
