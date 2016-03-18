@@ -33,7 +33,7 @@ module Qpid::Proton::Types
       return false
     else
       return true if (value.encoding == "UTF-8" ||
-                      value.encode("UTF-8").valid_encoding?)
+                      value.force_encoding("UTF-8").valid_encoding?)
 
       return false
     end
