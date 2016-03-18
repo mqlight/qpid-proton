@@ -931,7 +931,7 @@ bool pn_messenger_flow(pn_messenger_t *messenger)
     updated = true;
   }
 
-  if (!pn_list_size(messenger->blocked)) {
+  if (!pn_list_size(messenger->blocked) || messenger->credit_mode != LINK_CREDIT_AUTO) {
     messenger->next_drain = 0;
   } else {
     // not enough credit for all links
