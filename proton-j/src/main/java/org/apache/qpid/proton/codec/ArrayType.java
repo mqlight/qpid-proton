@@ -970,12 +970,18 @@ public class ArrayType implements PrimitiveType<Object[]>
     private static Object[] decodeArray(final DecoderImpl decoder, final int count)
     {
         TypeConstructor constructor = decoder.readConstructor();
-        return decodeNonPrimitive(constructor, count);
+        return decodeNonPrimitive(decoder, constructor, count);
     }
 
-    private static Object[] decodeNonPrimitive(final TypeConstructor constructor,
+    private static Object[] decodeNonPrimitive(final DecoderImpl decoder,
+                                               final TypeConstructor constructor,
                                                final int count)
     {
+        if (count > decoder.getByteBufferRemaining()) {
+            throw new IllegalArgumentException("Array element count "+count+" is specified to be greater than the amount of data available ("+
+                                               decoder.getByteBufferRemaining()+")");
+        }
+
         if(constructor instanceof ArrayEncoding)
         {
             ArrayEncoding arrayEncoding = (ArrayEncoding) constructor;
@@ -983,9 +989,8 @@ public class ArrayType implements PrimitiveType<Object[]>
             Object[] array = new Object[count];
             for(int i = 0; i < count; i++)
             {
-                array[i] = arrayEncoding.readValueArray();
+              array[i] = arrayEncoding.readValueArray();
             }
-
             return array;
         }
         else
@@ -1006,6 +1011,11 @@ public class ArrayType implements PrimitiveType<Object[]>
         TypeConstructor constructor = decoder.readConstructor();
         if(constructor.encodesJavaPrimitive())
         {
+            if (count > decoder.getByteBufferRemaining()) {
+                throw new IllegalArgumentException("Array element count "+count+" is specified to be greater than the amount of data available ("+
+                                                   decoder.getByteBufferRemaining()+")");
+            }
+
             if(constructor instanceof BooleanType.BooleanEncoding)
             {
                 return decodeBooleanArray((BooleanType.BooleanEncoding) constructor, count);
@@ -1042,7 +1052,7 @@ public class ArrayType implements PrimitiveType<Object[]>
         }
         else
         {
-            return decodeNonPrimitive(constructor, count);
+            return decodeNonPrimitive(decoder, constructor, count);
         }
 
     }
