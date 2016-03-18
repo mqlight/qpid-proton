@@ -275,6 +275,41 @@ PN_EXTERN void *pn_record_get(pn_record_t *record, pn_handle_t key);
 PN_EXTERN void pn_record_set(pn_record_t *record, pn_handle_t key, void *value);
 PN_EXTERN void pn_record_clear(pn_record_t *record);
 
+typedef void (*pn_fnc_tracer_t)(const char* name, const char *message);
+PN_EXTERN void pn_set_fnc_entry_tracer(pn_fnc_tracer_t tracer);
+PN_EXTERN void pn_set_fnc_data_tracer(pn_fnc_tracer_t tracer);
+PN_EXTERN void pn_set_fnc_exit_tracer(pn_fnc_tracer_t tracer);
+PN_EXTERN void pn_fnc_entry(const char* name);
+PN_EXTERN void pn_fnc_data_string(const char* prefix, char* data);
+PN_EXTERN void pn_fnc_data_bool(const char* prefix, bool data);
+PN_EXTERN void pn_fnc_data_double(const char* prefix, double data);
+PN_EXTERN void pn_fnc_data_float(const char* prefix, float data);
+PN_EXTERN void pn_fnc_data_int8_t(const char* prefix, int8_t data);
+PN_EXTERN void pn_fnc_data_int16_t(const char* prefix, int16_t data);
+PN_EXTERN void pn_fnc_data_int32_t(const char* prefix, int32_t data);
+PN_EXTERN void pn_fnc_data_int64_t(const char* prefix, int64_t data);
+PN_EXTERN void pn_fnc_data_pointer(const char* prefix, void* data);
+PN_EXTERN void pn_fnc_data_uint8_t(const char* prefix, uint8_t data);
+PN_EXTERN void pn_fnc_data_uint16_t(const char* prefix, uint16_t data);
+PN_EXTERN void pn_fnc_data_uint32_t(const char* prefix, uint32_t data);
+PN_EXTERN void pn_fnc_data_uint64_t(const char* prefix, uint64_t data);
+PN_EXTERN char* pn_fnc_exit_string(const char* name, char* rc);
+PN_EXTERN const char* pn_fnc_exit_const_string(const char* name, const char* rc);
+PN_EXTERN bool pn_fnc_exit_bool(const char* name, bool rc);
+PN_EXTERN double pn_fnc_exit_double(const char* name, double rc);
+PN_EXTERN float pn_fnc_exit_float(const char* name, float rc);
+PN_EXTERN int8_t pn_fnc_exit_int8_t(const char* name, int8_t rc);
+PN_EXTERN int16_t pn_fnc_exit_int16_t(const char* name, int16_t rc);
+PN_EXTERN int32_t pn_fnc_exit_int32_t(const char* name, int32_t rc);
+PN_EXTERN int64_t pn_fnc_exit_int64_t(const char* name, int64_t rc);
+PN_EXTERN void* pn_fnc_exit_pointer(const char* name, void* rc);
+PN_EXTERN const void* pn_fnc_exit_const_pointer(const char* name, const void* rc);
+PN_EXTERN uint8_t pn_fnc_exit_uint8_t(const char* name, uint8_t rc);
+PN_EXTERN uint16_t pn_fnc_exit_uint16_t(const char* name, uint16_t rc);
+PN_EXTERN uint32_t pn_fnc_exit_uint32_t(const char* name, uint32_t rc);
+PN_EXTERN uint64_t pn_fnc_exit_uint64_t(const char* name, uint64_t rc);
+PN_EXTERN void pn_fnc_exit_void(const char* name);
+
 #ifdef __cplusplus
 }
 #endif

@@ -277,3 +277,235 @@ pn_timestamp_t pn_timestamp_min( pn_timestamp_t a, pn_timestamp_t b )
   return b;
 }
 
+#define PN_DOUBLE_TO_STRING(_val)  char rcString[40];  sprintf(rcString, "%.18g", _val)
+#define PN_FLOAT_TO_STRING(_val)   char rcString[30];  sprintf(rcString, "%.12g", _val)
+#define PN_INT16_TO_STRING(_val)   char rcString[32];  sprintf(rcString, "%hd", _val)
+#define PN_INT32_TO_STRING(_val)   char rcString[64];  sprintf(rcString, "%d", _val)
+#if defined(_WIN32)
+#define PN_INT64_TO_STRING(_val)   char rcString[128]; sprintf(rcString, "%I64d", _val)
+#define PN_UINT64_TO_STRING(_val)  char rcString[128]; sprintf(rcString, "%I64u", _val)
+#else
+#define PN_INT64_TO_STRING(_val)   char rcString[128]; sprintf(rcString, "%ld", _val)
+#define PN_UINT64_TO_STRING(_val)  char rcString[128]; sprintf(rcString, "%lu", _val)
+#endif
+#define PN_POINTER_TO_STRING(_val) char rcString[32];  sprintf(rcString, "0x%p", _val)
+#define PN_UINT16_TO_STRING(_val)  char rcString[32];  sprintf(rcString, "%hu", _val)
+#define PN_UINT32_TO_STRING(_val)  char rcString[64];  sprintf(rcString, "%u", _val)
+
+static pn_fnc_tracer_t pn_fnc_entry_tracer = NULL;
+static pn_fnc_tracer_t pn_fnc_data_tracer  = NULL;
+static pn_fnc_tracer_t pn_fnc_exit_tracer  = NULL;
+
+void pn_set_fnc_entry_tracer(pn_fnc_tracer_t tracer)
+{
+  pn_fnc_entry_tracer = tracer;
+}
+
+void pn_set_fnc_data_tracer(pn_fnc_tracer_t tracer)
+{
+  pn_fnc_data_tracer = tracer;
+}
+
+void pn_set_fnc_exit_tracer(pn_fnc_tracer_t tracer)
+{
+  pn_fnc_exit_tracer = tracer;
+}
+
+void pn_fnc_entry(const char* name)
+{
+  if(pn_fnc_entry_tracer)
+    pn_fnc_entry_tracer(name, NULL);
+}
+
+static void pn_fnc_data(const char* prefix, char* data)
+{
+  if(pn_fnc_data_tracer)
+    pn_fnc_data_tracer(prefix, data);
+}
+
+void pn_fnc_data_string(const char* prefix, char* data)
+{
+  char rcString[129] = "<null>";
+  if(data)
+  {
+    strncpy(rcString, data, 128);
+    rcString[128] = 0;
+  }
+
+  pn_fnc_data(prefix, rcString);
+}
+
+void pn_fnc_data_bool(const char* prefix, bool data)
+{
+  pn_fnc_data(prefix, data ? (char*)"true" : (char*)"false");
+}
+
+void pn_fnc_data_double(const char* prefix, double data)
+{
+  PN_DOUBLE_TO_STRING(data);
+  pn_fnc_data(prefix, rcString);
+}
+
+void pn_fnc_data_float(const char* prefix, float data)
+{
+  PN_FLOAT_TO_STRING(data);
+  pn_fnc_data(prefix, rcString);
+}
+
+void pn_fnc_data_int8_t(const char* prefix, int8_t data)
+{
+  pn_fnc_data_int32_t(prefix, (int32_t)data);
+}
+
+void pn_fnc_data_int16_t(const char* prefix, int16_t data)
+{
+  PN_INT16_TO_STRING(data);
+  pn_fnc_data(prefix, rcString);
+}
+
+void pn_fnc_data_int32_t(const char* prefix, int32_t data)
+{
+  PN_INT32_TO_STRING(data);
+  pn_fnc_data(prefix, rcString);
+}
+
+void pn_fnc_data_int64_t(const char* prefix, int64_t data)
+{
+  PN_INT64_TO_STRING(data);
+  pn_fnc_data(prefix, rcString);
+}
+
+void pn_fnc_data_pointer(const char* prefix, void* data)
+{
+  PN_POINTER_TO_STRING(data);
+  pn_fnc_data(prefix, rcString);
+}
+
+void pn_fnc_data_uint8_t(const char* prefix, uint8_t data)
+{
+  pn_fnc_data_uint32_t(prefix, (uint32_t)data);
+}
+
+void pn_fnc_data_uint16_t(const char* prefix, uint16_t data)
+{
+  PN_UINT16_TO_STRING(data);
+  pn_fnc_data(prefix, rcString);
+}
+
+void pn_fnc_data_uint32_t(const char* prefix, uint32_t data)
+{
+  PN_UINT32_TO_STRING(data);
+  pn_fnc_data(prefix, rcString);
+}
+
+void pn_fnc_data_uint64_t(const char* prefix, uint64_t data)
+{
+  PN_UINT64_TO_STRING(data);
+  pn_fnc_data(prefix, rcString);
+}
+
+char* pn_fnc_exit_string(const char* name, char* rc)
+{
+  if(pn_fnc_exit_tracer)
+    pn_fnc_exit_tracer(name, rc);
+  return rc;
+}
+
+const char* pn_fnc_exit_const_string(const char* name, const char* rc)
+{
+  pn_fnc_exit_string(name, (char*)rc);
+  return rc;
+}
+
+bool pn_fnc_exit_bool(const char* name, bool rc)
+{
+  pn_fnc_exit_const_string(name, rc ? "true" : "false");
+  return rc;
+}
+
+double pn_fnc_exit_double(const char* name, double rc)
+{
+  PN_DOUBLE_TO_STRING(rc);
+  pn_fnc_exit_string(name, rcString);
+  return rc;
+}
+
+float pn_fnc_exit_float(const char* name, float rc)
+{
+  PN_FLOAT_TO_STRING(rc);
+  pn_fnc_exit_string(name, rcString);
+  return rc;
+}
+
+int8_t pn_fnc_exit_int8_t(const char* name, int8_t rc)
+{
+  pn_fnc_exit_int32_t(name, (int32_t)rc);
+  return rc;
+}
+
+int16_t pn_fnc_exit_int16_t(const char* name, int16_t rc)
+{
+  PN_INT16_TO_STRING(rc);
+  pn_fnc_exit_string(name, rcString);
+  return rc;
+}
+
+int32_t pn_fnc_exit_int32_t(const char* name, int32_t rc)
+{
+  PN_INT32_TO_STRING(rc);
+  pn_fnc_exit_string(name, rcString);
+  return rc;
+}
+
+int64_t pn_fnc_exit_int64_t(const char* name, int64_t rc)
+{
+  PN_INT64_TO_STRING(rc);
+  pn_fnc_exit_string(name, rcString);
+  return rc;
+}
+
+void* pn_fnc_exit_pointer(const char* name, void* rc)
+{
+  PN_POINTER_TO_STRING(rc);
+  pn_fnc_exit_string(name, rcString);
+  return rc;
+}
+
+const void* pn_fnc_exit_const_pointer(const char* name, const void* rc)
+{
+  pn_fnc_exit_pointer(name, (void*)rc);
+  return rc;
+}
+
+uint8_t pn_fnc_exit_uint8_t(const char* name, uint8_t rc)
+{
+  pn_fnc_exit_uint32_t(name, (uint32_t)rc);
+  return rc;
+}
+
+uint16_t pn_fnc_exit_uint16_t(const char* name, uint16_t rc)
+{
+  PN_UINT16_TO_STRING(rc);
+  pn_fnc_exit_string(name, rcString);
+  return rc;
+}
+
+uint32_t pn_fnc_exit_uint32_t(const char* name, uint32_t rc)
+{
+  PN_UINT32_TO_STRING(rc);
+  pn_fnc_exit_string(name, rcString);
+  return rc;
+}
+
+uint64_t pn_fnc_exit_uint64_t(const char* name, uint64_t rc)
+{
+  PN_UINT64_TO_STRING(rc);
+  pn_fnc_exit_string(name, rcString);
+  return rc;
+}
+
+void pn_fnc_exit_void(const char* name)
+{
+  pn_fnc_exit_const_string(name, "");
+}
+
