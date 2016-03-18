@@ -1113,7 +1113,7 @@ PN_EXTERN  pn_connection_t *pn_messenger_resolve(pn_messenger_t *messenger,
  * @return the number of bytes pushed into the connection
  */
 PN_EXTERN int pn_connection_push(pn_connection_t *connection,
-                                 void *buf, size_t size);
+                                 char *buf, size_t size);
 
 /**
  * Pop data from a connection after having been written by an

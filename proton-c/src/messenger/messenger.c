@@ -2599,7 +2599,7 @@ int pn_messenger_set_external_socket(pn_messenger_t *messenger)
   return 0;
 }
 
-int pn_connection_push(pn_connection_t *connection, void *buf, size_t size)
+int pn_connection_push(pn_connection_t *connection, char *buf, size_t size)
 {
   pn_connection_ctx_t *context = (pn_connection_ctx_t *) pn_connection_get_context(connection);
   pn_messenger_t *messenger = context->messenger;
@@ -2607,7 +2607,7 @@ int pn_connection_push(pn_connection_t *connection, void *buf, size_t size)
   ssize_t n;
 
   if (transport) {
-    n = pn_transport_push(transport, (char*)buf, size);
+    n = pn_transport_push(transport, buf, size);
     pn_error_t *transport_error = pn_transport_error(transport);
     if (pn_error_code(transport_error) != 0) {
       pn_error_copy(messenger->error, transport_error);

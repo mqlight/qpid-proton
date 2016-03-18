@@ -86,6 +86,23 @@
 %ignore pn_message_get_id;
 %ignore pn_message_set_id;
 %ignore pn_message_get_correlation_id;
+%rename(pn_messenger_resolve) wrap_pn_messenger_resolve;
+%inline %{
+    pn_connection_t *wrap_pn_messenger_resolve(pn_messenger_t *messenger, const char *address) {
+        char *pn_name = NULL;
+        return pn_messenger_resolve(messenger, address, &pn_name);
+    }
+%}
+%ignore pn_messenger_resolve;
+
+%rename(pn_transport_head) wrap_pn_transport_head;
+%inline %{
+    PyObject *wrap_pn_transport_head(pn_transport_t * transport, size_t size) {
+        return PyBytes_FromStringAndSize(pn_transport_head(transport), size);
+    }
+%}
+%ignore pn_transport_head;
+
 %ignore pn_message_set_correlation_id;
 
 %typemap(in) pn_bytes_t {
