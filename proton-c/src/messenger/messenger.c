@@ -205,9 +205,21 @@ static void pni_connection_update(pn_selectable_t *sel) {
 
 #include <errno.h>
 
-static void pn_error_report(const char *pfx, const char *error)
+static void pn_error_report(pn_error_t *error, const char *pfx,
+                            const char *text)
 {
-  pn_logf("%s ERROR %s", pfx, error);
+  char *message;
+  int length = strlen(pfx) + strlen(text) + 9;
+
+  // XXX: disable output to stderr for now
+  // pn_logf("%s ERROR %s", pfx, text);
+
+  // set pn_error to allow API to catch the problem
+  message = (char *)malloc(length);
+  memset(message, '\0', sizeof(char) * length);
+  sprintf(message, "%s ERROR %s\n", pfx, text);
+  pn_error_set(error, PN_STATE_ERR, message);
+  free(message);
 }
 
 void pni_modified(pn_ctx_t *ctx)
@@ -252,10 +264,16 @@ static void pni_connection_readable(pn_selectable_t *sel)
                         pn_transport_tail(transport), capacity);
     if (n <= 0) {
       if (n == 0 || !pn_wouldblock(messenger->io)) {
-        if (n < 0) perror("recv");
+        if (n < 0 && pn_messenger_errno(messenger) == 0) {
+          pn_error_format(messenger->error, PN_ERR,
+                          "CONNECTION ERROR (%s:%s): %s\n",
+                          messenger->address.host, messenger->address.port,
+                          strerror(errno));
+        }
         pn_transport_close_tail(transport);
         if (!(pn_connection_state(connection) & PN_REMOTE_CLOSED)) {
-          pn_error_report("CONNECTION", "connection aborted (remote)");
+          pn_error_report(messenger->error, "CONNECTION",
+                          "connection aborted (remote)");
         }
       }
     } else {
@@ -282,7 +300,12 @@ static void pni_connection_writable(pn_selectable_t *sel)
                         pn_transport_head(transport), pending);
     if (n < 0) {
       if (!pn_wouldblock(messenger->io)) {
-        perror("send");
+        if (pn_messenger_errno(messenger) == 0) {
+          pn_error_format(messenger->error, PN_ERR,
+                          "CONNECTION ERROR (%s:%s): %s\n",
+                          messenger->address.host, messenger->address.port,
+                          strerror(errno));
+        }
         pn_transport_close_head(transport);
       }
     } else {
@@ -937,7 +960,7 @@ static int pn_transport_config(pn_messenger_t *messenger,
                                                messenger->password);
       if (err) {
         pn_ssl_domain_free(d);
-        pn_error_report("CONNECTION", "invalid credentials");
+        pn_error_report(messenger->error, "SSL", "invalid credentials");
         return err;
       }
     }
@@ -945,20 +968,23 @@ static int pn_transport_config(pn_messenger_t *messenger,
       int err = pn_ssl_domain_set_trusted_ca_db(d, messenger->trusted_certificates);
       if (err) {
         pn_ssl_domain_free(d);
-        pn_error_report("CONNECTION", "invalid certificate db");
+        pn_error_report(messenger->error, "SSL", "invalid certificate db");
         return err;
       }
       err = pn_ssl_domain_set_peer_authentication(
           d, messenger->ssl_peer_authentication_mode, NULL);
       if (err) {
         pn_ssl_domain_free(d);
-        pn_error_report("CONNECTION", "error configuring ssl to verify peer");
+        pn_error_report(messenger->error, "SSL",
+                        "error configuring ssl to verify peer");
       }
     } else {
-      int err = pn_ssl_domain_set_peer_authentication(d, PN_SSL_ANONYMOUS_PEER, NULL);
+      int err = pn_ssl_domain_set_peer_authentication(
+              d, PN_SSL_ANONYMOUS_PEER, NULL);
       if (err) {
         pn_ssl_domain_free(d);
-        pn_error_report("CONNECTION", "error configuring ssl for anonymous peer");
+        pn_error_report(messenger->error, "SSL",
+                        "error configuring ssl for anonymous peer");
         return err;
       }
     }
@@ -970,8 +996,8 @@ static int pn_transport_config(pn_messenger_t *messenger,
   return 0;
 }
 
-static void pn_condition_report(const char *pfx, pn_condition_t *condition)
-{
+static void pn_condition_report(pn_error_t *error, const char *pfx,
+                                pn_condition_t *condition) {
   if (pn_condition_is_redirect(condition)) {
     pn_logf("%s NOTICE (%s) redirecting to %s:%i",
             pfx,
@@ -979,11 +1005,11 @@ static void pn_condition_report(const char *pfx, pn_condition_t *condition)
             pn_condition_redirect_host(condition),
             pn_condition_redirect_port(condition));
   } else if (pn_condition_is_set(condition)) {
-    char error[1024];
-    snprintf(error, 1024, "(%s) %s",
+    char text[1024];
+    snprintf(text, 1024, "(%s) %s",
              pn_condition_get_name(condition),
              pn_condition_get_description(condition));
-    pn_error_report(pfx, error);
+    pn_error_report(error, pfx, text);
   }
 }
 
@@ -1130,7 +1156,7 @@ void pn_messenger_process_connection(pn_messenger_t *messenger, pn_event_t *even
 
   if (pn_connection_state(conn) == (PN_LOCAL_ACTIVE | PN_REMOTE_CLOSED)) {
     pn_condition_t *condition = pn_connection_remote_condition(conn);
-    pn_condition_report("CONNECTION", condition);
+    pn_condition_report(messenger->error, "CONNECTION", condition);
     pn_connection_close(conn);
     if (pn_condition_is_redirect(condition)) {
       const char *host = pn_condition_redirect_host(condition);
@@ -1197,7 +1223,7 @@ void pn_messenger_process_link(pn_messenger_t *messenger, pn_event_t *event)
 
   if (pn_link_state(link) & PN_REMOTE_CLOSED) {
     if (PN_LOCAL_ACTIVE & pn_link_state(link)) {
-      pn_condition_report("LINK", pn_link_remote_condition(link));
+      pn_condition_report(messenger->error, "LINK", pn_link_remote_condition(link));
       pn_link_close(link);
       pni_messenger_reclaim_link(messenger, link);
       pn_link_free(link);
