@@ -294,9 +294,11 @@ static void pni_connection_readable(pn_selectable_t *sel)
         }
       }
     } else {
-      int err = pn_transport_process(transport, (size_t)n);
-      if (err)
-        pn_error_copy(messenger->error, pn_transport_error(transport));
+      pn_transport_process(transport, (size_t)n);
+      pn_error_t *transport_error = pn_transport_error(transport);
+      if (pn_error_code(transport_error) != 0) {
+        pn_error_copy(messenger->error, transport_error);
+      }
     }
   }
 
