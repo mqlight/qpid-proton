@@ -1852,8 +1852,12 @@ pn_link_t *pn_messenger_link(pn_messenger_t *messenger, const char *address,
       (pn_connection_ctx_t *)pn_connection_get_context(connection);
 
   pn_link_t *link = pn_messenger_get_link(messenger, address, sender);
-  if (link)
+  if (link) {
+    if (pn_link_detached(link)) {
+      pn_link_open(link);
+    }
     return link;
+  }
 
   pn_session_t *ssn = pn_session(connection);
   pn_session_open(ssn);

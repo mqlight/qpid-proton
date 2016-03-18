@@ -290,6 +290,7 @@ struct pn_link_t {
   bool drain_flag_mode; // receiver only
   bool drain;
   bool detached;
+  bool remote_detached;
 };
 
 struct pn_disposition_t {

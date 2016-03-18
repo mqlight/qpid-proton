@@ -1669,6 +1669,7 @@ int pn_do_detach(pn_transport_t *transport, uint8_t frame_type, uint16_t channel
     PN_SET_REMOTE(link->endpoint.state, PN_REMOTE_CLOSED);
     pn_collector_put(transport->connection->collector, PN_OBJECT, link, PN_LINK_REMOTE_CLOSE);
   } else {
+    link->remote_detached = true;
     pn_collector_put(transport->connection->collector, PN_OBJECT, link, PN_LINK_REMOTE_DETACH);
   }
 

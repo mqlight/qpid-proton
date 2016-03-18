@@ -269,6 +269,9 @@ PN_EXTERN void pn_link_close(pn_link_t *link);
  */
 PN_EXTERN void pn_link_detach(pn_link_t *link);
 
+PN_EXTERN bool pn_link_detached(pn_link_t *link);
+PN_EXTERN bool pn_link_remote_detached(pn_link_t *link);
+
 /**
  * Access the locally defined source definition for a link.
  *

@@ -321,6 +321,18 @@ void pn_link_detach(pn_link_t *link)
 
 }
 
+bool pn_link_detached(pn_link_t *link)
+{
+  assert(link);
+  return link->detached;
+}
+
+bool pn_link_remote_detached(pn_link_t *link)
+{
+  assert(link);
+  return link->remote_detached;
+}
+
 static void pni_terminus_free(pn_terminus_t *terminus)
 {
   pn_free(terminus->address);
@@ -1165,6 +1177,7 @@ pn_link_t *pn_link_new(int type, pn_session_t *session, const char *name)
   link->remote_snd_settle_mode = PN_SND_MIXED;
   link->remote_rcv_settle_mode = PN_RCV_FIRST;
   link->detached = false;
+  link->remote_detached = false;
 
   // begin transport state
   link->state.local_handle = -1;
