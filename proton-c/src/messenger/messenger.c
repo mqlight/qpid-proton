@@ -1778,17 +1778,8 @@ pn_link_t *pn_messenger_link(pn_messenger_t *messenger, const char *address,
     pn_link_set_snd_settle_mode(link, messenger->snd_settle_mode);
     pn_link_set_rcv_settle_mode(link, messenger->rcv_settle_mode);
   }
-  // XXX
-  if (pn_streq(name, "#")) {
-    if (pn_link_is_sender(link)) {
-      pn_terminus_set_dynamic(pn_link_target(link), true);
-    } else {
-      pn_terminus_set_dynamic(pn_link_source(link), true);
-    }
-  } else {
     pn_terminus_set_address(pn_link_target(link), name);
     pn_terminus_set_address(pn_link_source(link), name);
-  }
   link_ctx_setup( messenger, connection, link );
 
   if (timeout > 0) {
