@@ -57,6 +57,8 @@ module Qpid::Proton::Messenger
 
     include Qpid::Proton::Util::ErrorHandler
 
+    FLAGS_CHECK_ROUTES = Cproton::PN_FLAGS_CHECK_ROUTES
+
     can_raise_error [:send, :receive, :password=, :start, :stop,
                      :perform_put, :perform_get, :interrupt,
                      :route, :rewrite, :accept, :reject,
@@ -75,6 +77,8 @@ module Qpid::Proton::Messenger
       @impl = Cproton.pn_messenger(name)
       @selectables = {}
       ObjectSpace.define_finalizer(self, self.class.finalize!(@impl))
+      Cproton.pn_messenger_set_outgoing_window(@impl, 2_147_483_647)
+      Cproton.pn_messenger_set_incoming_window(@impl, 2_147_483_647)
     end
 
     def self.finalize!(impl) # :nodoc:
@@ -211,6 +215,38 @@ module Qpid::Proton::Messenger
     #
     def stopped?
       Cproton.pn_messenger_stopped(@impl)
+    end
+
+    # Set control flags to enable additional function for the Messenger.
+    #
+    # ==== Options
+    #
+    # * flags the flags to set on the messenger
+    def flags=(flags)
+      Cproton.pn_messenger_set_flags(@impl, flags)
+    end
+
+    # Gets the control flags for a Messenger.
+    def flags
+      Cproton.pn_messenger_get_flags(@impl)
+    end
+
+    # Set the local sender settle mode for the underlying links.
+    #
+    # ==== Options
+    #
+    # * mode - the sender settle mode
+    def snd_settle_mode=(mode)
+      Cproton.pn_messenger_set_snd_settle_mode(@impl, mode)
+    end
+
+    # Set the local receiver settle mode for the underlying links.
+    #
+    # ==== Options
+    #
+    # * mode - the receiver settle mode
+    def rcv_settle_mode=(mode)
+      Cproton.pn_messenger_set_rcv_settle_mode(@impl, mode)
     end
 
     # Subscribes the Messenger to messages originating from the
