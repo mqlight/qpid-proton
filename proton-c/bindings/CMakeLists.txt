@@ -41,6 +41,7 @@ set (BINDING_DEPS qpid-proton)
 # DEFAULT_{uppercase name of binding} to ON
 
 # Prerequisites for Python wrapper:
+find_package (PythonInterp)
 find_package (PythonLibs)
 if (PYTHONLIBS_FOUND)
   set (DEFAULT_PYTHON ON)
