@@ -2688,6 +2688,10 @@ bool pn_messenger_started(pn_messenger_t *messenger)
       return false;
     }
 
+    if (pn_connection_remote_container(connection) == NULL) {
+      return false;
+    }
+
     if (pn_error_code(messenger->error) != 0)
       return false;
   }
