@@ -325,11 +325,11 @@ static void pn_fnc_data(const char* prefix, char* data)
 
 void pn_fnc_data_string(const char* prefix, char* data)
 {
-  char rcString[129] = "<null>";
-  if(data)
+  char rcString[17] = "<null>";
+  if (data)
   {
-    strncpy(rcString, data, 128);
-    rcString[128] = 0;
+    strncpy(rcString, data, 16);
+    rcString[16] = 0;
   }
 
   pn_fnc_data(prefix, rcString);

@@ -2918,13 +2918,14 @@ ssize_t pn_transport_peek(pn_transport_t *transport, char *dst, size_t size)
 
 void pn_transport_pop(pn_transport_t *transport, size_t size)
 {
-  if (transport) {
-    assert( transport->output_pending >= size );
+  if (transport && size) {
+    assert(transport->output_pending);
+    assert(transport->output_pending >= size);
     transport->output_pending -= size;
     transport->bytes_output += size;
     if (transport->output_pending) {
-      memmove( transport->output_buf,  &transport->output_buf[size],
-               transport->output_pending );
+      memmove(transport->output_buf, transport->output_buf + size,
+              transport->output_pending);
     }
 
     if (transport->output_pending==0 && pn_transport_pending(transport) < 0) {

@@ -169,6 +169,7 @@ int pn_string_setn(pn_string_t *string, const char *bytes, size_t n)
     string->bytes[n] = '\0';
     string->size = n;
   } else {
+    string->bytes[0] = '\0';
     string->size = PNI_NULL_SIZE;
   }
 
