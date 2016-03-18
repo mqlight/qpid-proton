@@ -1757,7 +1757,8 @@ static ssize_t transport_consume(pn_transport_t *transport)
     } else if (n == 0) {
       break;
     } else {
-      assert(n == PN_EOS);
+      // pn_sasl_input may also return PN_ERR;
+      // assert(n == PN_EOS);
       if (transport->trace & (PN_TRACE_RAW | PN_TRACE_FRM))
         pn_transport_log(transport, "  <- EOS");
       transport->input_pending = 0;  // XXX ???
