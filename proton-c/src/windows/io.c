@@ -139,7 +139,7 @@ static void ensure_unique(pn_io_t *io, pn_socket_t new_socket)
 
 pn_error_t *pn_socket_error(pn_io_t *io, pn_socket_t socket)
 {
-  if (socket) {
+  if (socket && pn_error_code(io->error) == 0) {
     pni_win32_error(io->error, "socket", WSAGetLastError());
   }
   return io->error;
