@@ -133,12 +133,14 @@ set (PROTON_SHARE ${SHARE_INSTALL_DIR}/proton-${PN_VERSION})
 # Pull in local cmake modules
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/tools/cmake/Modules/")
 
-find_package(Java)
-option (BUILD_JAVA "Build proton-j." ${JAVA_FOUND})
+if (NOT NOBUILD_JAVA)
+  find_package(Java)
+  option (BUILD_JAVA "Build proton-j." ${JAVA_FOUND})
 
-if (BUILD_JAVA)
-  add_subdirectory(proton-j)
-endif()
+  if (BUILD_JAVA)
+    add_subdirectory(proton-j)
+  endif()
+endif (NOT NOBUILD_JAVA)
 
 add_subdirectory(proton-c)
 
@@ -149,13 +151,15 @@ install (DIRECTORY examples
          DESTINATION ${PROTON_SHARE})
 
 # add relevant CTest support
-find_program (MAVEN_EXE mvn DOC "Location of the maven program")
-mark_as_advanced (MAVEN_EXE)
-if (JAVA_FOUND AND MAVEN_EXE)
-  add_test (proton-java ${MAVEN_EXE} test --file ${Proton_SOURCE_DIR}/pom.xml)
-else (JAVA_FOUND AND MAVEN_EXE)
-  message (STATUS "Cannot find both Java and Maven: testing disabled for Proton-J")
-endif (JAVA_FOUND AND MAVEN_EXE)
+if (NOT NOBUILD_JAVA)
+  find_program (MAVEN_EXE mvn DOC "Location of the maven program")
+  mark_as_advanced (MAVEN_EXE)
+  if (JAVA_FOUND AND MAVEN_EXE)
+    add_test (proton-java ${MAVEN_EXE} test --file ${Proton_SOURCE_DIR}/pom.xml)
+  else (JAVA_FOUND AND MAVEN_EXE)
+    message (STATUS "Cannot find both Java and Maven: testing disabled for Proton-J")
+  endif (JAVA_FOUND AND MAVEN_EXE)
+endif (NOT NOBUILD_JAVA)
 
 # Generate test environment settings
 configure_file(${CMAKE_SOURCE_DIR}/config.sh.in
