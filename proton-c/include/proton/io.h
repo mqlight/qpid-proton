@@ -95,6 +95,7 @@ typedef struct pn_selector_t pn_selector_t;
 PN_EXTERN pn_io_t *pn_io(void);
 PN_EXTERN void pn_io_free(pn_io_t *io);
 PN_EXTERN pn_error_t *pn_io_error(pn_io_t *io);
+PN_EXTERN pn_error_t *pn_socket_error(pn_io_t *io, pn_socket_t socket);
 PN_EXTERN pn_socket_t pn_connect(pn_io_t *io, const char *host, const char *port);
 PN_EXTERN pn_socket_t pn_listen(pn_io_t *io, const char *host, const char *port);
 PN_EXTERN pn_socket_t pn_accept(pn_io_t *io, pn_socket_t socket, char *name, size_t size);

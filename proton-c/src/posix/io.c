@@ -26,6 +26,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -81,6 +82,21 @@ void pn_io_free(pn_io_t *io)
 pn_error_t *pn_io_error(pn_io_t *io)
 {
   assert(io);
+  return io->error;
+}
+
+pn_error_t *pn_socket_error(pn_io_t *io, pn_socket_t socket)
+{
+  if (socket) {
+    int sockerr;
+    socklen_t len = sizeof(int);
+    getsockopt(socket, SOL_SOCKET, SO_ERROR, &sockerr, &len);
+    if (sockerr) {
+      pn_error_format(io->error, PN_ERR, "%s: %s", "socket", strerror(sockerr));
+    } else {
+      pn_i_error_from_errno(io->error, "socket");
+    }
+  }
   return io->error;
 }
 

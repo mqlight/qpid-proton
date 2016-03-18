@@ -267,9 +267,10 @@ static void pni_connection_readable(pn_selectable_t *sel)
       if (n == 0 || !pn_wouldblock(messenger->io)) {
         if (n < 0 && pn_messenger_errno(messenger) == 0) {
           pn_error_format(messenger->error, PN_ERR,
-                          "CONNECTION ERROR (%s:%s): %s\n",
+                          "CONNECTION ERROR (%s:%s): %s (recv)\n",
                           messenger->address.host, messenger->address.port,
-                          strerror(errno));
+                          pn_error_text(pn_socket_error(
+                              messenger->io, pn_selectable_get_fd(sel))));
         }
         pn_transport_close_tail(transport);
         if (!(pn_connection_state(connection) & PN_REMOTE_CLOSED)) {
@@ -318,9 +319,10 @@ static void pni_connection_writable(pn_selectable_t *sel)
       if (!pn_wouldblock(messenger->io)) {
         if (pn_messenger_errno(messenger) == 0) {
           pn_error_format(messenger->error, PN_ERR,
-                          "CONNECTION ERROR (%s:%s): %s\n",
+                          "CONNECTION ERROR (%s:%s): %s (send)\n",
                           messenger->address.host, messenger->address.port,
-                          strerror(errno));
+                          pn_error_text(pn_socket_error(
+                              messenger->io, pn_selectable_get_fd(sel))));
         }
         pn_transport_close_head(transport);
       }
@@ -1569,7 +1571,7 @@ int pn_messenger_start(pn_messenger_t *messenger)
               if (pn_error_code(messenger->error) == 0)
                 pn_error_copy(messenger->error, pn_io_error(messenger->io));
               pn_error_format(messenger->error, PN_ERR,
-                              "CONNECTION ERROR (%s:%s): %s\n",
+                              "CONNECTION ERROR (%s:%s): %s (connect)\n",
                               messenger->address.host, messenger->address.port,
                               pn_error_text(messenger->error));
               error = pn_error_code(messenger->error);
