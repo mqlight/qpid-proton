@@ -2547,6 +2547,7 @@ pn_millis_t pn_messenger_get_remote_idle_timeout(pn_messenger_t *messenger,
       break;
     }
   }
+  pn_free(addr.text);
   return timeout;
 }
 
